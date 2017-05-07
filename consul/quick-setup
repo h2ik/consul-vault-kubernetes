@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+
+git checkout -- configs/*
+git checkout -- agent-token-payload.json
+
+ACL_MASTER_TOKEN=`uuid`
+ACL_AGENT_MASTER_TOKEN=`uuid`
+ACL_AGENT_TOKEN=`uuid`
+GOSSIP_ENCRYPTION_KEY=`consul keygen`
+
+echo "----------------------------------------------------------------"
+printf "|%-25s %-36s|\n" "Master Token:" "$ACL_MASTER_TOKEN"
+printf "|%-25s %-36s|\n" "Agent Master Token:" "$ACL_AGENT_MASTER_TOKEN"
+printf "|%-25s %-36s|\n" "Agent Token:" "$ACL_AGENT_TOKEN"
+printf "|%-25s %-36s|\n" "Gossip Encryption Key:" "$GOSSIP_ENCRYPTION_KEY"
+echo "----------------------------------------------------------------"
+
+## create the tokens if they don't exist
+if [ ! -f consul.pem ]; then
+  echo "Creating Certs for Consul"
+  cfssl gencert -initca ca/ca-csr.json | cfssljson -bare ca
+
+  cfssl gencert \
+    -ca=ca.pem \
+    -ca-key=ca-key.pem \
+    -config=ca/ca-config.json \
+    -profile=default \
+    ca/consul-csr.json | cfssljson -bare consul
+fi
+
+## fix the configs
+sed -Ei "s/\"acl_agent_token\": \"(.*)\"/\"acl_agent_token\": \"${ACL_AGENT_TOKEN}\"/" ./configs/server.json
+sed -Ei "s/\"ID\": \"(.*)\"/\"ID\": \"${ACL_AGENT_TOKEN}\"/" ./agent-token-payload.json
+sed -Ei "s/\"acl_master_token\": \"(.*)\"/\"acl_master_token\": \"${ACL_MASTER_TOKEN}\"/" ./configs/server.json
+sed -Ei "s/\"acl_agent_master_token\": \"(.*)\"/\"acl_agent_master_token\": \"${ACL_AGENT_MASTER_TOKEN}\"/" ./configs/server.json
+
+# save the tokens to kubernetes
+kubectl create secret generic consul-tokens \
+  --from-literal=agent-master-token=$ACL_AGENT_MASTER_TOKEN \
+  --from-literal=master-token=$ACL_MASTER_TOKEN \
+  --from-literal=agent-token=$ACL_AGENT_TOKEN
+
+# save the gossip key and certificates
+kubectl create secret generic consul \
+  --from-literal="gossip-encryption-key=${GOSSIP_ENCRYPTION_KEY}" \
+  --from-file=ca.pem \
+  --from-file=consul.pem \
+  --from-file=consul-key.pem
+
+# save the server config
+kubectl create configmap consul --from-file=configs/server.json
+
+# save the payload for creating the agent token
+kubectl create configmap consul-agent-token-payload --from-file=./agent-token-payload.json
+
+# create the services
+kubectl create -f services/consul.yaml
+
+# create the consul stateful sets, these contain pvs and the pods
+kubectl create -f statefulsets/consul.yaml && watch -e kubectl get pods
+
+# run the job join the consul pods together
+kubectl create -f jobs/consul-join.yaml && watch -e kubectl get jobs
+
+# run the job to create the agent token
+kubectl create -f jobs/consul-agent-token.yaml && watch -e kubectl get jobs
+
+echo ""
+echo "Consul is Setup"
+echo "--------------------------------------------------------"
+echo "To Access Consul, just forward the port"
+echo ""
+echo "    kubectl port-forward consul-0 8500"
+echo ""
+echo "and open http://127.0.0.1:8500/ in your favorite"
+echo "browser, and put your master token in the setting panel"

@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: consul-join
+spec:
+  template:
+    metadata:
+      name: consul-join
+    spec:
+      activeDeadlineSeconds: 30
+      containers:
+        - name: consul
+          image: consul:0.8.1
+          command:
+            - "/bin/consul"
+            - "join"
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: CONSUL_AGENT_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: consul-tokens
+                  key: agent-master-token
+          args:
+            - "-token=$(CONSUL_AGENT_MASTER_KEY)"
+            - "-http-addr=consul-0.consul.$(NAMESPACE).svc.cluster.local:8500"
+            - "consul-1.consul.$(NAMESPACE).svc.cluster.local"
+            - "consul-2.consul.$(NAMESPACE).svc.cluster.local"
+      restartPolicy: Never

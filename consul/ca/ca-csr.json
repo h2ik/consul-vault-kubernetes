@@ -1,0 +1,18 @@
+{
+  "hosts": [
+    "cluster.local"
+  ],
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "US",
+      "L": "Cupertino",
+      "O": "SugarCRM",
+      "OU": "CA",
+      "ST": "California"
+    }
+  ]
+}

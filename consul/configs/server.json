@@ -1,0 +1,16 @@
+{
+  "ca_file": "/etc/tls/ca.pem",
+  "cert_file": "/etc/tls/consul.pem",
+  "key_file": "/etc/tls/consul-key.pem",
+  "verify_incoming": true,
+  "verify_outgoing": true,
+  "verify_server_hostname": true,
+  "acl_datacenter": "dc1",
+  "acl_default_policy": "deny",
+  "acl_master_token": "",
+  "acl_agent_master_token": "",
+  "acl_agent_token": "",
+  "ports": {
+    "https": 8443
+  }
+}

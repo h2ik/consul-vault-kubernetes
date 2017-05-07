@@ -1,0 +1,6 @@
+{
+  "ID": "",
+  "Name": "Vault Token",
+  "Type": "client",
+  "Rules": "key \"vault/\" { policy = \"write\" } service \"vault\" { policy = \"write\" } session \"\" { policy = \"write\" }"
+}

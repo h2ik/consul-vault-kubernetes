@@ -1,0 +1,6 @@
+{
+  "ID": "",
+  "Name": "Agent Token",
+  "Type": "client",
+  "Rules": "node \"\" { policy = \"write\" } service \"consul\" { policy = \"write\" }"
+}
